@@ -15,6 +15,7 @@ class AppSettings(BaseSettings):
 
     # database
     POSTGRES_DSN: str
+    API_TOKEN: str
 
 
 app_settings = AppSettings()

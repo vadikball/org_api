@@ -1,17 +1,35 @@
 volumes:
-  org_api_postgres_storage:
+  demo_org_api_postgres_storage:
 
 networks:
-  org_api:
+  demo_org_api:
 
 services:
+  app:
+    build: .
+    command: ["sh", "demo.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_HOST_PORT:-11118}:8000"
+    env_file:
+      - path: .env
+        required: true
+    networks:
+      - demo_org_api
   db:
     image: postgis/postgis:17-3.6-alpine
     ports:
-      - "10008:5432"
+      - "${DB_HOST_PORT:-10008}:5432"
     env_file:
       - .env
     networks:
-      - org_api
+      - demo_org_api
     volumes:
-      - org_api_postgres_storage:/var/lib/postgresql/data
+      - demo_org_api_postgres_storage:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

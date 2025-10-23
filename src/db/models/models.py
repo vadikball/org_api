@@ -1,7 +1,7 @@
 from typing import Optional
 
-from geoalchemy2 import Geography
-from sqlalchemy import ForeignKey, Column, String
+from geoalchemy2 import Geography, WKBElement
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import ARRAY
 
@@ -13,7 +13,7 @@ class CategoryModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(nullable=False)
-    parent_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
+    parent_id: Mapped[int] = mapped_column(ForeignKey("categories.id"), nullable=True)
 
 
 class BuildingModel(Base):
@@ -21,7 +21,7 @@ class BuildingModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     address: Mapped[str] = mapped_column(nullable=False)
-    location = Column(
+    location: Mapped[WKBElement] = mapped_column(
         Geography("POINT", srid=4326),
     )
 

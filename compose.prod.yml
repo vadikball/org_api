@@ -1,0 +1,31 @@
+volumes:
+  org_api_postgres_storage:
+
+networks:
+  org_api:
+
+services:
+  app:
+    build: .
+    command: [ "uv", "run", "fastapi", "dev", "main.py", "--host", "0.0.0.0" ]
+    depends_on:
+      - db
+    ports:
+      - "11118:8000"
+    env_file:
+      - path: .env
+        required: true
+    networks:
+      - org_api
+    volumes:
+      - ./src:/home/appuser/src:ro
+  db:
+    image: postgis/postgis:17-3.6-alpine
+    ports:
+      - "10008:5432"
+    env_file:
+      - .env
+    networks:
+      - org_api
+    volumes:
+      - org_api_postgres_storage:/var/lib/postgresql/data

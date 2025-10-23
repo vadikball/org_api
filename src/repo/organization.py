@@ -1,22 +1,14 @@
-from geoalchemy2 import WKBElement
-from geoalchemy2.shape import to_shape
 from sqlalchemy import SQLColumnExpression, select
 from sqlalchemy.orm import aliased
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models.models import CategoryModel, CategoryOrganizationModel, OrganizationModel
-from src.scheme.base import BuildingOut, CategoryOut, GeometryPoint, OrganizationOut
-
-
-def page_to_limit_offset(page: int, page_size: int) -> tuple[int, int]:
-    """Return tuple [limit, offset] from page parameters"""
-
-    return page_size, page_size * (page - 1)
+from src.db.models.models import BuildingModel, CategoryModel, CategoryOrganizationModel, OrganizationModel
+from src.repo.base import BaseRepo
+from src.scheme.base import BuildingOut, CategoryOut, OrganizationOut
+from src.service.geo_shape import radius_filter_function
 
 
-class OrganizationRepo:
-    def __init__(self, session: AsyncSession):
-        self._session = session
+class OrganizationRepo(BaseRepo[OrganizationModel, OrganizationOut]):
+    model = OrganizationModel
 
     async def get_by_id(self, organization_id: int) -> OrganizationOut | None:
         query = select(OrganizationModel).where(OrganizationModel.id == organization_id)
@@ -24,16 +16,26 @@ class OrganizationRepo:
 
         return self.to_domain(organization_from_db)
 
-    async def get_list(self, name: str, page: int, page_size: int) -> list[OrganizationOut]:
-        return await self._get_list(OrganizationModel.name.ilike(f"%{name}%"), page, page_size)
+    async def get_list(
+        self, name: str | None, lon: float | None, lat: float | None, radius: int | None, page: int, page_size: int
+    ) -> list[OrganizationOut]:
+        filter_expressions = []
+        join_building = False
+        if name is not None:
+            filter_expressions.append(OrganizationModel.name.ilike(f"%{name}%"))
+        if None not in {lat, lon, radius}:
+            assert lat is not None and lon is not None and radius is not None
+            join_building = True
+            filter_expressions.append(radius_filter_function(lon, lat, radius))
+
+        return await self._get_list(filter_expressions, page, page_size, join_building=join_building)
 
     async def get_list_by_building(self, building_id: int, page: int, page_size: int) -> list[OrganizationOut]:
-        return await self._get_list(OrganizationModel.building_id == building_id, page, page_size)
+        return await self._get_list([OrganizationModel.building_id == building_id], page, page_size)
 
     async def get_list_by_category(
         self, category_id: int, page: int, page_size: int, include_subcategory: bool
     ) -> list[OrganizationOut]:
-        limit, offset = page_to_limit_offset(page, page_size)
         filter_expression = CategoryOrganizationModel.category_id == category_id
         if include_subcategory:
             base = select(CategoryModel.id, CategoryModel.parent_id).where(CategoryModel.id == category_id)
@@ -61,31 +63,32 @@ class OrganizationRepo:
             )
             filter_expression = CategoryOrganizationModel.category_id.in_(select(subq.c.id))
 
-        query = (
-            select(OrganizationModel)
-            .join(
+        return await self._get_list([filter_expression], page, page_size, True)
+
+    async def _get_list(
+        self,
+        filter_expressions: list[SQLColumnExpression],
+        page: int,
+        page_size: int,
+        join_category: bool = False,
+        join_building: bool = False,
+    ) -> list[OrganizationOut]:
+        limit, offset = self.page_to_limit_offset(page, page_size)
+
+        query = select(OrganizationModel)
+        if join_category:
+            query = query.join(
                 CategoryOrganizationModel,
                 OrganizationModel.id == CategoryOrganizationModel.organization_id,
             )
-            .where(filter_expression)
-            .limit(limit)
-            .offset(offset)
-        )
-        organizations_from_db = (await self._session.execute(query)).scalars().all()
+        if join_building:
+            query = query.join(
+                BuildingModel,
+                OrganizationModel.building_id == BuildingModel.id,
+            )
 
-        return [self._to_domain(organization_from_db) for organization_from_db in organizations_from_db]
+        query = query.where(*filter_expressions).limit(limit).offset(offset)
 
-    def to_domain(self, organization_from_db: OrganizationModel | None) -> OrganizationOut | None:
-        if organization_from_db is None:
-            return None
-
-        return self._to_domain(organization_from_db)
-
-    async def _get_list(
-        self, filter_expression: SQLColumnExpression, page: int, page_size: int
-    ) -> list[OrganizationOut]:
-        limit, offset = page_to_limit_offset(page, page_size)
-        query = select(OrganizationModel).where(filter_expression).limit(limit).offset(offset)
         organizations_from_db = (await self._session.execute(query)).scalars().all()
 
         return [self._to_domain(organization_from_db) for organization_from_db in organizations_from_db]
@@ -96,7 +99,7 @@ class OrganizationRepo:
             building = BuildingOut(
                 id=organization_from_db.building.id,
                 address=organization_from_db.building.address,
-                location=self.__building_geo_point(organization_from_db.building.location),
+                location=self._building_geo_point(organization_from_db.building),
             )
 
         return OrganizationOut(
@@ -106,7 +109,3 @@ class OrganizationRepo:
             building=building,
             categories=[CategoryOut.model_validate(category) for category in organization_from_db.categories],
         )
-
-    def __building_geo_point(self, location: WKBElement) -> GeometryPoint:
-        point = to_shape(location)
-        return GeometryPoint(coordinates=(point.x, point.y))  # type: ignore

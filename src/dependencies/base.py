@@ -5,7 +5,9 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db import session
+from src.repo.building import BuildingRepo
 from src.repo.organization import OrganizationRepo
+from src.service.building import BuildingService
 from src.service.organization import OrganizationService
 
 
@@ -36,3 +38,17 @@ def get_organization_service(organization_repo: OrganizationRepoDependencyType) 
 
 
 OrganizationServiceDependencyType = Annotated[OrganizationService, Depends(get_organization_service)]
+
+
+def get_building_repo(session: AsyncSessionDependencyType) -> BuildingRepo:
+    return BuildingRepo(session)
+
+
+BuildingRepoDependencyType = Annotated[BuildingRepo, Depends(get_building_repo)]
+
+
+def get_building_service(building_repo: BuildingRepoDependencyType) -> BuildingService:
+    return BuildingService(building_repo)
+
+
+BuildingServiceDependencyType = Annotated[BuildingService, Depends(get_building_service)]

@@ -12,13 +12,20 @@ class OrganizationService:
     async def get_by_id(self, organization_id: int) -> OrganizationOut:
         organization = await self._organization_repo.get_by_id(organization_id)
         if organization is None:
-            raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Organization not found.")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=f"Organization with id={organization_id} not found."
+            )
 
         return organization
 
     async def get_page(self, query_param: OrganizationListParam) -> Page[OrganizationOut]:
         organizations = await self._organization_repo.get_list(
-            query_param.name, query_param.page, query_param.page_size
+            query_param.name,
+            query_param.lon,
+            query_param.lat,
+            query_param.radius,
+            query_param.page,
+            query_param.page_size,
         )
 
         return Page[OrganizationOut](

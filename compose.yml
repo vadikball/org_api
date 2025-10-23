@@ -7,7 +7,7 @@ networks:
 services:
   app:
     build: .
-    command: ["sh", "demo.sh"]
+    command: ["sh", "-i", "demo.sh"]
     depends_on:
       db:
         condition: service_healthy

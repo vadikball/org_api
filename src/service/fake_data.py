@@ -28,9 +28,9 @@ class FakeDataService(LoggerBase):
 
         self._session = session
         self._faker = Faker("en_US")
-        self.categories = []
-        self.buildings = []
-        self.organizations = []
+        self.categories: list[CategoryModel] = []
+        self.buildings: list[BuildingModel] = []
+        self.organizations: list[OrganizationModel] = []
 
     async def load(self):
         """Load fake categories, buildings, and organizations."""

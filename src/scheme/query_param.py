@@ -12,6 +12,10 @@ class OrganizationListParam(PageParam):
     name: str
 
 
+class OrganizationByCategoryListParam(PageParam):
+    include_subcategories: bool = False
+
+
 class Page[PageData: BaseModel](BaseModel):
     page: Annotated[int, Field(strict=True, ge=1)]
     page_size: Annotated[int, Field(strict=True, ge=1)]

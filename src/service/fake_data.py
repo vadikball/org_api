@@ -57,8 +57,16 @@ class FakeDataService(LoggerBase):
         accessories = CategoryModel(name="Accessories", parent_id=auto.id)
 
         self._session.add_all([meat, dairy, trucks, cars, accessories])
-        await self._session.flush()  # get IDs assigned
+        await self._session.flush()
 
+        poultry = CategoryModel(name="Poultry", parent_id=meat.id)
+        red_meat = CategoryModel(name="Red Meat", parent_id=meat.id)
+        self._session.add_all([poultry, red_meat])
+        await self._session.flush()
+
+        chicken = CategoryModel(name="Chicken", parent_id=poultry.id)
+        self._session.add(chicken)
+        await self._session.flush()
         # 2. Create random buildings
         for _ in range(10):
             lat = random.uniform(55.5, 55.9)  # example: around Moscow
@@ -74,7 +82,7 @@ class FakeDataService(LoggerBase):
         await self._session.flush()
 
         # 3. Create organizations
-        self.categories = [food, meat, dairy, auto, trucks, cars, accessories]
+        self.categories = [food, meat, dairy, auto, trucks, cars, accessories, poultry, red_meat, chicken]
 
         for _ in range(20):
             org = OrganizationModel(
@@ -87,10 +95,11 @@ class FakeDataService(LoggerBase):
         await self._session.flush()
 
         # 4. Link orgs to random categories
-        for org in self.organizations:
+        for org in self.organizations[:-1]:
             for cat in random.sample(self.categories, random.randint(1, 2)):
                 self._session.add(CategoryOrganizationModel(category_id=cat.id, organization_id=org.id))
 
+        self._session.add(CategoryOrganizationModel(category_id=chicken.id, organization_id=self.organizations[-1].id))
         # 5. Commit all data
         await self._session.commit()
         self.logger.info("✅ Fake data successfully loaded.")

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from src.dependencies.base import OrganizationServiceDependencyType
 from src.middleware.api_token import get_api_key
 from src.scheme.base import OrganizationOut
-from src.scheme.query_param import OrganizationListParam, Page, PageParam
+from src.scheme.query_param import OrganizationByCategoryListParam, OrganizationListParam, Page, PageParam
 
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(get_api_key)])
@@ -35,7 +35,7 @@ async def get_organization_detail(
 
 
 @router.get("/buildings/{building_id}/organizations")
-async def get_organizations_from_building(
+async def get_organizations_by_building(
     building_id: int,
     service: OrganizationServiceDependencyType,
     query_param: Annotated[PageParam, Query()],
@@ -45,3 +45,16 @@ async def get_organizations_from_building(
     """
 
     return await service.get_page_by_building(building_id, query_param)
+
+
+@router.get("/categories/{category_id}/organizations")
+async def get_organizations_by_category(
+    category_id: int,
+    service: OrganizationServiceDependencyType,
+    query_param: Annotated[OrganizationByCategoryListParam, Query()],
+) -> Page[OrganizationOut]:
+    """
+    Get an organization page by building id.
+    """
+
+    return await service.get_page_by_category(category_id, query_param)

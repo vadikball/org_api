@@ -2,7 +2,7 @@ from http import HTTPStatus
 from fastapi import HTTPException
 from src.repo.organization import OrganizationRepo
 from src.scheme.base import OrganizationOut
-from src.scheme.query_param import OrganizationListParam, Page, PageParam
+from src.scheme.query_param import OrganizationByCategoryListParam, OrganizationListParam, Page, PageParam
 
 
 class OrganizationService:
@@ -30,6 +30,19 @@ class OrganizationService:
     async def get_page_by_building(self, building_id: int, query_param: PageParam) -> Page[OrganizationOut]:
         organizations = await self._organization_repo.get_list_by_building(
             building_id, query_param.page, query_param.page_size
+        )
+
+        return Page[OrganizationOut](
+            page=query_param.page,
+            page_size=query_param.page_size,
+            page_data=organizations,
+        )
+
+    async def get_page_by_category(
+        self, category_id: int, query_param: OrganizationByCategoryListParam
+    ) -> Page[OrganizationOut]:
+        organizations = await self._organization_repo.get_list_by_category(
+            category_id, query_param.page, query_param.page_size, query_param.include_subcategories
         )
 
         return Page[OrganizationOut](

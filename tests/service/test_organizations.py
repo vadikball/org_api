@@ -25,6 +25,29 @@ async def test_organizations_building(app_client: AsyncClient, lifespan_fake_dat
     assert response_org
 
 
+async def test_organizations_category(app_client: AsyncClient, lifespan_fake_data: FakeDataService) -> None:
+    # check up to 3 category deep constraint!
+
+    food_category = lifespan_fake_data.categories[0]
+
+    organizations = lifespan_fake_data.organizations
+    chicken_org = organizations[-1]
+
+    response = await app_client.get(f"/organization_directory/v1/categories/{food_category.id}/organizations")
+    response_model = Page[OrganizationOut](**response.json())
+    assert response.status_code == 200
+    for org_from_api in response_model.page_data:
+        assert food_category.id in {category.id for category in org_from_api.categories}
+
+    response = await app_client.get(
+        f"/organization_directory/v1/categories/{food_category.id}/organizations", params={"include_subcategory": True}
+    )
+    response_model = Page[OrganizationOut](**response.json())
+    assert response.status_code == 200
+    for org_from_api in response_model.page_data:
+        assert chicken_org.id not in {category.id for category in org_from_api.categories}
+
+
 async def test_organization_id(app_client: AsyncClient, lifespan_fake_data: FakeDataService) -> None:
     organizations = lifespan_fake_data.organizations
     org = organizations[0]
